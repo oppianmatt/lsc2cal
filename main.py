@@ -13,20 +13,21 @@ ptc = pdt.Constants('en_GB', usePyICU=False)
 cal = pdt.Calendar(ptc)
 
 LOCATION_RE = re.compile('@(.+)$')
-DATE_RE = re.compile('\d+\D\d+\D\d+') 
+DATE_RE = re.compile('\D?(\d+\D\d+\D\d+)[^\d ]?') 
 
 def parse_event_title(title):
     """
     Breaks up [date] title @ location into components
     """
     match = DATE_RE.search(title)
-    date_tuple = cal.parseDate(match.group(0))
+    date_tuple = cal.parseDate(match.group(1))
     event_date = datetime.date(date_tuple[0], date_tuple[1], date_tuple[2])
+    event_title = title[len(match.group(0)):].strip()
     location = None
     match = LOCATION_RE.search(title)
     if match:
-        location = match.group(1)
-    return (event_date, title, location)
+        location = match.group(1).strip()
+    return (event_date, event_title, location)
     
 def main():
     opener = urllib2.build_opener()
