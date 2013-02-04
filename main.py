@@ -1,38 +1,44 @@
 #!/usr/bin/env python
 
-'''
-Created on Jan 8, 2013
-
-@author: matt
-'''
-
-import json
-import urllib2
-import icalendar
-import re
-import datetime
+from time import sleep
 import HTMLParser
-import webapp2
+import datetime
+import icalendar
+import json
+import parsedatetime as pdt
+import re
+import urllib2
 
-TITLE_RE = re.compile('\[(\S+)\] (.+) \@ (.+)')
+ptc = pdt.Constants('en_GB', usePyICU=False)
+cal = pdt.Calendar(ptc)
+
+LOCATION_RE = re.compile('@(.+)$')
+DATE_RE = re.compile('\d+\D\d+\D\d+') 
 
 def parse_event_title(title):
     """
     Breaks up [date] title @ location into components
     """
-    match = TITLE_RE.search(title)
+    match = DATE_RE.search(title)
+    date_tuple = cal.parseDate(match.group(0))
+    event_date = datetime.date(date_tuple[0], date_tuple[1], date_tuple[2])
+    location = None
+    match = LOCATION_RE.search(title)
     if match:
-        title_date = match.group(1)
-        title_title = match.group(2)
-        title_loc = match.group(3)
-        title_date = datetime.datetime.strptime(title_date, '%d/%m/%y').date()
-        return (title_date, title_title, title_loc)
+        location = match.group(1)
+    return (event_date, title, location)
     
-
 def main():
     opener = urllib2.build_opener()
     opener.addheaders = [('User-agent', 'London Social Club Calendar v0.1 by /u/dalore')]
-    data = opener.open('http://api.reddit.com/r/londonsocialclub/new/?sort=new')
+    opened = False
+    while not opened:
+        try:
+            data = opener.open('http://api.reddit.com/r/londonsocialclub/new/?sort=new&limit=100')
+            opened = True
+        except:
+            sleep(31)
+        
 
     jsondata = json.load(data)
     try:
@@ -55,7 +61,8 @@ def main():
             event['uid'] = "%s@lsc" % linkdata['id']
             event.add('description', "%s\n\n%s" % (linkdata['url'], 
                 h.unescape(linkdata['selftext_html'])))
-            event.add('location', event_location)
+            if event_location:
+                event.add('location', event_location)
             event.add('summary', event_title)
             event.add('dtstart', event_date)
             event.add('dtend', event_date + datetime.timedelta(1))
@@ -67,13 +74,18 @@ def main():
         
     return cal.to_ical() # content_type="text/calendar")
 
-class MainPage(webapp2.RequestHandler):
-    def get(self):
-        self.response.headers['Content-Type'] = 'text/calendar'
-        cal = main()
-        self.response.out.write(cal)
-
-app = webapp2.WSGIApplication([('/', MainPage)])
+try:
+    import webapp2
+    
+    class MainPage(webapp2.RequestHandler):
+        def get(self):
+            self.response.headers['Content-Type'] = 'text/calendar'
+            cal = main()
+            self.response.out.write(cal)
+    
+    app = webapp2.WSGIApplication([('/', MainPage)])
+except:
+    pass
 
 if __name__ == '__main__':
-    main()
+    print main()
