@@ -49,7 +49,7 @@ def main():
 
     cal = icalendar.Calendar()
     cal.add('prodid', '-//London Social Club Calendar//reddit.com//')
-    cal.add('version', '0.1')
+    cal.add('version', '2.0')
 
     h = HTMLParser.HTMLParser()
 
